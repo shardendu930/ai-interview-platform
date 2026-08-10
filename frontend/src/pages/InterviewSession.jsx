@@ -11,6 +11,7 @@ const InterviewSession = () => {
 
   const [interview, setInterview] = useState(null);
   const [answers, setAnswers] = useState([]);
+  const [listeningIndex, setListeningIndex] = useState(null);
 
   const fetchInterview = async () => {
     try {
@@ -19,9 +20,12 @@ const InterviewSession = () => {
       setInterview(response.data.interview);
 
       setAnswers(
-        response.data.interview.questions.map((q) => q.answer || "")
+        response.data.interview.questions.map(
+          (question) => question.answer || "",
+        ),
       );
     } catch (error) {
+      console.log(error);
       toast.error("Failed to load interview");
     }
   };
@@ -32,8 +36,50 @@ const InterviewSession = () => {
 
   const handleAnswerChange = (index, value) => {
     const updatedAnswers = [...answers];
+
     updatedAnswers[index] = value;
+
     setAnswers(updatedAnswers);
+  };
+
+  const handleVoiceInput = (index) => {
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      toast.error(
+        "Speech recognition is not supported. Please use Google Chrome.",
+      );
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+
+    recognition.lang = "en-US";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    setListeningIndex(index);
+
+    recognition.start();
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+
+      handleAnswerChange(index, transcript);
+    };
+
+    recognition.onerror = (event) => {
+      console.log("Speech recognition error:", event.error);
+
+      toast.error("Could not recognize your voice.");
+
+      setListeningIndex(null);
+    };
+
+    recognition.onend = () => {
+      setListeningIndex(null);
+    };
   };
 
   const handleSubmit = async () => {
@@ -46,13 +92,14 @@ const InterviewSession = () => {
 
       navigate(`/result/${id}`);
     } catch (error) {
+      console.log(error);
       toast.error("Submission failed");
     }
   };
 
   if (!interview) {
     return (
-      <div className="flex justify-center items-center h-screen">
+      <div className="flex items-center justify-center min-h-screen text-xl">
         Loading...
       </div>
     );
@@ -63,43 +110,38 @@ const InterviewSession = () => {
       <Navbar />
 
       <div className="min-h-screen bg-gray-100 p-8">
-
-        <h1 className="text-3xl font-bold mb-8">
-          {interview.title}
-        </h1>
+        <h1 className="text-3xl font-bold mb-8">{interview.title}</h1>
 
         {interview.questions.map((question, index) => (
-          <div
-            key={index}
-            className="bg-white p-6 rounded-xl shadow mb-6"
-          >
-            <h2 className="font-bold mb-3">
-              Question {index + 1}
-            </h2>
+          <div key={index} className="bg-white p-6 rounded-xl shadow mb-6">
+            <h2 className="font-bold mb-3">Question {index + 1}</h2>
 
-            <p className="mb-4">
-              {question.question}
-            </p>
+            <p className="mb-4">{question.question}</p>
 
             <textarea
               rows="5"
               className="w-full border rounded p-3"
-              placeholder="Write your answer..."
+              placeholder="Write your answer or use the microphone..."
               value={answers[index]}
-              onChange={(e) =>
-                handleAnswerChange(index, e.target.value)
-              }
+              onChange={(e) => handleAnswerChange(index, e.target.value)}
             />
+
+            <button
+              type="button"
+              onClick={() => handleVoiceInput(index)}
+              className="mt-3 bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition"
+            >
+              {listeningIndex === index ? "🎙️ Listening..." : "🎤 Speak Answer"}
+            </button>
           </div>
         ))}
 
         <button
           onClick={handleSubmit}
-          className="bg-green-600 text-white px-8 py-3 rounded-lg"
+          className="bg-green-600 text-white px-8 py-3 rounded-lg hover:bg-green-700 transition"
         >
           Submit Interview
         </button>
-
       </div>
     </>
   );
