@@ -37,6 +37,11 @@ const resumeSchema = new mongoose.Schema({
     ref: "User",
     required: true,
   },
+
+  embedding: {
+    type: [Number],
+    default: [],
+  },
 });
 
 const Resume = mongoose.model("Resume", resumeSchema);
